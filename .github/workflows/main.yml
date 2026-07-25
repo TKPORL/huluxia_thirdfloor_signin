@@ -1,27 +1,27 @@
 name: huluxia_signin
 on:
-时间表:
-- cron: ‘0 16 * * *’
+  schedule:
+    - cron: '0 16 * * *'
   workflow_dispatch:
-工作:
-构建:
-上运行:ubuntu-latest
-步骤:
--名称：Checkout
-用途:行动/ checkout@v3
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
       - name: '初始化python环境'
-用途:行动/ setup-python@v4
-:
-python版本:3.10.11
+        uses: actions/setup-python@v4
+        with:
+           python-version: 3.10.11
       - name: '安装依赖'
-运行:|
-PIP install——升级PIP
-PIP install -r ./requirements.txt
-      - 名字: '开始运行'
+        run: |
+          pip install --upgrade pip
+          pip install -r ./requirements.txt
+      - name: '开始运行'
         id: signin-outputs
         env:
-NOTIFIER_TYPE: ${{secrets。NOTIFIER_TYPE}}
-账户: ${{secrets。账户}}
-EMAIL_CONFIG: ${{secrets。EMAIL_CONFIG}}
-运行:|
-python。/ main.py
+          NOTIFIER_TYPE: ${{ secrets.NOTIFIER_TYPE }}
+          ACCOUNTS: ${{ secrets.ACCOUNTS }}
+          EMAIL_CONFIG: ${{ secrets.EMAIL_CONFIG }}
+        run: |
+          python ./main.py
