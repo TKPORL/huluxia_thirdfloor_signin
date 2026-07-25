@@ -1,5 +1,5 @@
-名字: huluxia_signin
-:
+name: huluxia_signin
+on:
 时间表:
 - cron: ‘0 16 * * *’
   workflow_dispatch:
@@ -21,7 +21,7 @@ PIP install -r ./requirements.txt
         id: signin-outputs
         env:
 NOTIFIER_TYPE: ${{secrets。NOTIFIER_TYPE}}
-ACCOUNTS: ${{secrets。账户}}
+账户: ${{secrets。账户}}
 EMAIL_CONFIG: ${{secrets。EMAIL_CONFIG}}
 运行:|
 python。/ main.py
