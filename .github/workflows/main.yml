@@ -14,7 +14,11 @@ jobs:
       - name: '初始化python环境'
         uses: actions/setup-python@v7
         with:
-          python-version: '3.10.11'
+          # 不要写死到补丁号（如 3.10.11）：GitHub 的 ubuntu-latest 镜像会滚动升级，
+          # 每换一次镜像，旧补丁号就可能没有对应预编译包，setup-python 会直接报
+          # "not found for Ubuntu XX.XX" 并让整个任务失败。
+          # 写大版本号，让 action 自动取该系列最新的、当前镜像有包的版本。
+          python-version: '3.12'
       - name: '安装依赖'
         run: |
           pip install --upgrade pip

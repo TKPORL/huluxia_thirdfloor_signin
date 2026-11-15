@@ -49,11 +49,14 @@
            - name: '初始化python环境'
              uses: actions/setup-python@v7
              with:
-                python-version: 3.10.11
+                python-version: '3.12'
      ```
 
-     > ⚠️ action 版本不要用 `@v3` / `@v4`。GitHub 会定期下线旧版的 Node 运行时，
-     > 旧版本会直接启动失败（2026-11-05 本项目连续断签 10 天就是这个原因）。
+     > ⚠️ 两个坑别踩：
+     > 1. `python-version` **不要写死补丁号**（如 `3.10.11`）。GitHub 的 `ubuntu-latest`
+     >    镜像会滚动升级，2026-11-05 就升到了 Ubuntu 26.04，旧补丁号没有对应预编译包，
+     >    直接报 `not found for Ubuntu 26.04`，本项目因此连续断签 10 天。写大版本号即可。
+     > 2. `uses` 不要停留在 `@v3` / `@v4`，旧版 action 的 Node 运行时会被 GitHub 下线。
      > 完整可用的 workflow 以仓库里实际的 `.github/workflows/main.yml` 为准。
 
 4. **运行Github Actions**：

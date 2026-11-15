@@ -50,15 +50,23 @@ python main.py
   否则保活步骤的失败会污染签到结果。
 - `main.py` 判定必须写成 `failed > 0`（有一个失败就失败），
   **不能**写成 `failed == len(accounts)`，否则部分账号断签不会变红，心跳还会报平安。
+- workflow 里的 `python-version` **禁止写死补丁号**（如 `3.10.11`），
+  只写大版本（如 `'3.12'`）。镜像一滚动，写死的补丁号就找不到预编译包，任务直接崩。
 
 ### 2026-11 事故复盘（务必记住）
 
 - 现象：#106（11/04）成功，#107（11/05）起连续失败到 #116
-- 根因：`actions/checkout@v3` + `actions/setup-python@v4` 所使用的 Node 运行时被 GitHub 强制下线，
-  「初始化python环境」步骤 1 秒即崩，**签到代码一次都没跑到**
+- 直接表现：「初始化python环境」步骤 1 秒即崩，签到代码一次都没跑到
+- **真正根因**：GitHub 的 `ubuntu-latest` 镜像在 11/05 滚动升级到 **Ubuntu 26.04**，
+  而 workflow 里写死的 `python-version: 3.10.11` 没有 26.04 的预编译包，日志原文：
+  `The version '3.10.11' with architecture 'x64' was not found for Ubuntu 26.04.`
 - 为什么没通知：通知代码在签到脚本里，脚本没跑 = 一条消息都发不出
-- 修复：action 升级到 `@v7`，并加上面三层防护
-- 教训：**GitHub 的 action 版本会过期**，每隔几个月应看一眼运行记录是否还绿
+- 修复：`python-version` 改为 `'3.12'`（大版本号，让 action 自己取当前镜像有包的补丁版本）；
+  同时 action 升级到 `@v7`（旧版迟早也会因 Node 运行时下线而失效）
+- **教训一**：`python-version` 永远不要写死到补丁号，镜像一滚动就失配
+- **教训二**：`ubuntu-latest` 是会变的，不要假设它是固定环境
+- **教训三**：GitHub 的失败邮件只在「跑了但失败」时发，「**根本没跑**」它一声不吭，
+  所以必须靠 healthchecks 这类外部心跳兜底
 
 ## 目录
 
@@ -87,9 +95,10 @@ python main.py
 
 ## 当前状态
 
-- 最后更新：2026-11-15（修复 action 版本失效导致的连续断签，并加装三层防护）
+- 最后更新：2026-11-15（修复 ubuntu-26.04 镜像滚动导致的连续断签，并加装三层防护）
 - Git：是（Fork 自上游）
-- workflow action 版本：`checkout@v7` / `setup-python@v7`（**已过期会直接失效，需定期检查**）
+- 运行环境：`ubuntu-latest` + Python `3.12`（**不要回退成写死补丁号的写法**）
+- action 版本：`checkout@v7` / `setup-python@v7`（旧版会因 Node 运行时下线而失效，需定期检查）
 - README 标注最后更新：2026-03-29
 
 ## 要看更多
