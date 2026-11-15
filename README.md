@@ -45,30 +45,43 @@
          runs-on: ubuntu-latest
          steps:
            - name: Checkout
-             uses: actions/checkout@v3
+             uses: actions/checkout@v7
            - name: '初始化python环境'
-             uses: actions/setup-python@v4
+             uses: actions/setup-python@v7
              with:
                 python-version: 3.10.11
-           - name: '安装依赖'
-             run: |
-               pip install --upgrade pip
-               pip install -r ./requirements.txt
-           - name: '开始运行'
-             id: signin-outputs
-             env:
-               # 不需要的推送形式可以直接注释，反之你需要取消注释            
-               NOTIFIER_TYPE: ${{ secrets.NOTIFIER_TYPE }} 
-               # EMAIL_CONFIG: ${{ secrets.EMAIL_CONFIG }}
-               # WECHAT_ROBOT_URL: ${{ secrets.WECHAT_ROBOT_URL }}
-               ACCOUNTS: ${{ secrets.ACCOUNTS }}
-             run: |
-               python ./main.py
      ```
+
+     > ⚠️ action 版本不要用 `@v3` / `@v4`。GitHub 会定期下线旧版的 Node 运行时，
+     > 旧版本会直接启动失败（2026-11-05 本项目连续断签 10 天就是这个原因）。
+     > 完整可用的 workflow 以仓库里实际的 `.github/workflows/main.yml` 为准。
 
 4. **运行Github Actions**：
    - 设置好的 schedule 将会每日自动执行签到任务。
    - 你也可以随时进入 `Actions` 页面，选择 `huluxia_signin` workflow，然后点击 `Run workflow` 手动触发签到任务。
+
+### 断签防护与告警 ⚠️（本 Fork 新增）
+
+签到中断过两次，都是几个月后才发现的。现在有三层防护：
+
+| 层 | 机制 | 兜住什么 |
+|---|---|---|
+| 1 | 保活提交 | 仓库 60 天无提交时 GitHub 会停用定时任务 |
+| 2 | 失败告警 `alert_failure.py` | 任意步骤失败立即发邮件 / 企微 |
+| 3 | 心跳监控 healthchecks.io | **任务压根没跑**也会告警 |
+
+#### 配置心跳监控（强烈建议，5 分钟）
+
+前两层有个共同盲区：**任务如果根本没被触发，什么都不会发**。GitHub 自己的失败邮件只在「跑了但失败」时才发。
+
+1. 打开 https://healthchecks.io ，用邮箱注册（免费，不要信用卡）
+2. 新建一个 Check：Period 填 `1 day`，Grace Time 填 `6 hours`
+3. 复制它给你的 Ping URL，形如 `https://hc-ping.com/xxxxxxxx-xxxx-xxxx`
+4. 去仓库 `Settings → Secrets and variables → Actions`，新建 Secret 名为 `HEALTHCHECK_URL`，值粘贴这个 URL
+
+配好后：签到成功会上报正常信号；失败会上报 `/fail` 立即告警；**超过 30 小时完全没动静也会发邮件**。
+
+> 注意：`HEALTHCHECK_URL` 没配置时，workflow 会跳过心跳上报，不会报错——但也失去了第三层保护。
 
 ### 消息推送方式 📢
 

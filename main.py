@@ -33,7 +33,9 @@ for phone, password in accounts:
         logger.error(f"账号 {phone} 签到失败: {e}")
     time.sleep(60)  # 每次签到间隔60秒
 
-# 有账号失败就让任务以失败状态结束，这样 GitHub 会发邮件提醒，不会再悄悄断签
-if accounts and failed == len(accounts):
-    logger.error("全部账号签到失败")
+# 只要有任意一个账号失败，任务就以失败状态结束。
+# 不能写成 failed == len(accounts)：那样「3 个账号挂了 1 个」仍显示绿色，
+# 心跳也会上报平安，等于把部分断签悄悄吞掉。
+if accounts and failed > 0:
+    logger.error(f"{failed}/{len(accounts)} 个账号签到失败")
     sys.exit(1)

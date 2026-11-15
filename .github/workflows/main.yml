@@ -10,19 +10,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
       - name: '初始化python环境'
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v7
         with:
-           python-version: 3.10.11
+          python-version: '3.10.11'
       - name: '安装依赖'
         run: |
           pip install --upgrade pip
           pip install -r ./requirements.txt
       - name: '开始运行'
-        id: signin-outputs
+        id: signin
         env:
           NOTIFIER_TYPE: ${{ secrets.NOTIFIER_TYPE }}
+          WECHAT_ROBOT_URL: ${{ secrets.WECHAT_ROBOT_URL }}
           ACCOUNTS: ${{ secrets.ACCOUNTS }}
           EMAIL_CONFIG: ${{ secrets.EMAIL_CONFIG }}
         run: |
@@ -39,3 +40,38 @@ jobs:
           git commit -m "chore: keepalive $(date -u +%Y-%m-%d)" || echo "无改动，跳过提交"
           git pull --rebase origin master || true
           git push origin HEAD:master || echo "推送失败，下次运行会重试"
+      # 心跳上报：签到成功上报正常信号，失败（含前面的步骤崩了）上报失败信号。
+      # healthchecks.io 收到失败信号会立刻发邮件，这是「跑挂了当天就知道」的第一层。
+      - name: '心跳上报'
+        if: always()
+        env:
+          HEALTHCHECK_URL: ${{ secrets.HEALTHCHECK_URL }}
+          SIGNIN_OUTCOME: ${{ steps.signin.outcome }}
+        run: |
+          if [ -z "$HEALTHCHECK_URL" ]; then
+            echo "未配置 HEALTHCHECK_URL，跳过心跳上报"
+            exit 0
+          fi
+          if [ "$SIGNIN_OUTCOME" = "success" ]; then
+            echo "签到成功，上报正常信号"
+            curl -fsS -m 15 --retry 3 -o /dev/null "$HEALTHCHECK_URL" || echo "心跳上报失败，不影响签到结果"
+          else
+            echo "签到未成功（outcome=$SIGNIN_OUTCOME），上报失败信号"
+            curl -fsS -m 15 --retry 3 -o /dev/null "$HEALTHCHECK_URL/fail" || echo "失败信号上报失败"
+          fi
+      # 失败兜底告警：只用系统 python3 + 标准库，绕开 setup-python 与 pip。
+      # 即使前面的环境搭建步骤崩了，这一步照样能发出通知。
+      - name: '失败告警'
+        if: failure()
+        env:
+          EMAIL_CONFIG: ${{ secrets.EMAIL_CONFIG }}
+          WECHAT_ROBOT_URL: ${{ secrets.WECHAT_ROBOT_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          RUN_NUMBER: ${{ github.run_number }}
+          WORKFLOW_NAME: ${{ github.workflow }}
+        run: |
+          if [ ! -f ./alert_failure.py ]; then
+            echo "alert_failure.py 不存在（可能 Checkout 就失败了），跳过失败告警"
+            exit 0
+          fi
+          /usr/bin/python3 ./alert_failure.py || echo "告警脚本自身出错，但已尽力"

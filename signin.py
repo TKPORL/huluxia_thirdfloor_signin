@@ -104,11 +104,14 @@ class HuluxiaSignin:
         data = self.psd_login(acc, psd)
         status = data['status']
         if status == 0:
-            self.notifier.send("手机号或密码错误!")
-        else:
-            self._key = data['_key']
-            self.userid = data['user']['userID']
-            return self._key
+            # 登录失败必须抛异常：否则后面会用空 _key 去请求用户信息，
+            # 报出 KeyError 这种无关错误，日志里看不出真实原因。
+            reason = data.get('msg') or '手机号或密码错误'
+            self.notifier.send(f"{reason}!")
+            raise RuntimeError(f"登录失败：{reason}")
+        self._key = data['_key']
+        self.userid = data['user']['userID']
+        return self._key
 
     # 获取用户信息
     def user_info(self):
